@@ -1,8 +1,8 @@
-"""Digest auth
+"""Requisitos da v3
 
-Revision ID: 6815f0364040
+Revision ID: 37d377d7f3ce
 Revises: 
-Create Date: 2021-07-07 13:38:25.126973
+Create Date: 2021-07-07 17:38:40.418178
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6815f0364040'
+revision = '37d377d7f3ce'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,8 +23,7 @@ def upgrade():
     sa.Column('name', sa.String(length=127), nullable=False),
     sa.Column('last_name', sa.String(length=511), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('password', sa.String(length=511), nullable=False),
-    sa.Column('api_key', sa.String(length=511), nullable=False),
+    sa.Column('password_hash', sa.String(length=511), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
     )

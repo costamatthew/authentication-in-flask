@@ -1,24 +1,27 @@
 from flask import Blueprint, current_app, render_template, request, jsonify
 
-import secrets
 from http import HTTPStatus
-from flask_httpauth import HTTPTokenAuth
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from app.models.user_model import UserModel
 from app.services.end_session import end_session
 
 
-api_token = secrets
-auth = HTTPTokenAuth()
 bp_api = Blueprint("bp_api", __name__, url_prefix='/api', template_folder='template')
 
 
 
 
-@auth.verify_token
-def verify_token(token):
-    user = UserModel.query.filter_by(api_key=token).first()
-    if user:
-        return user.serialized
+@bp_api.route("/auth", methods=["POST"])
+def auth():
+    username = request.json.get("username", None)
+    password = request.json.get("password", None)
+
+    user = UserModel.query.filter_by(email=username).first()
+    if UserModel.verify_password(user, password):
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token)
+
+    return jsonify({"msg": "Bad username or password"}), 401
 
 
 
@@ -35,14 +38,14 @@ def signup():
     session = current_app.db.session
     data_form = request.form
 
-    new_api_token = api_token.token_hex(16)
+    password_to_hash = data_form["password"]
 
     new_user = UserModel(name=data_form["name"], 
                         last_name=data_form["last_name"],
                         password=data_form["password"],
-                        email=data_form["email"], 
-                        api_key=new_api_token)
+                        email=data_form["email"]) 
 
+    new_user.password = password_to_hash
     end_session(session, new_user)
     return jsonify(new_user.serialized), HTTPStatus.OK
 
@@ -50,22 +53,25 @@ def signup():
 
 
 @bp_api.get("/")
-@auth.login_required
+@jwt_required()
 def signup_get():
-    return jsonify(auth.current_user()), HTTPStatus.OK
+    user_email = get_jwt_identity()
+    data: UserModel = UserModel.query.filter_by(email=user_email).first()
+    data_serialized = data.serialized
+    
+    return jsonify(data_serialized), HTTPStatus.OK
 
 
 
 
 @bp_api.put("/")
-@auth.login_required
+@jwt_required()
 def signup_update():
     session = current_app.db.session
     data = request.get_json()
 
-    request_bearer_token = request.headers
-    bearer_token = request_bearer_token.get("Authorization").replace("Bearer", "").strip()
-    data_to_update: UserModel = UserModel.query.filter_by(api_key=bearer_token).first()
+    user_email = get_jwt_identity()
+    data_to_update: UserModel = UserModel.query.filter_by(email=user_email).first()
 
     for key, value in data.items():
         setattr(data_to_update, key, value)
@@ -78,13 +84,12 @@ def signup_update():
 
 
 @bp_api.delete("/")
-@auth.login_required
+@jwt_required()
 def signup_delete():
     session = current_app.db.session
 
-    request_bearer_token = request.headers
-    bearer_token = request_bearer_token.get("Authorization").replace("Bearer", "").strip()
-    data_to_delete: UserModel = UserModel.query.filter_by(api_key=bearer_token).first()
+    user_email = get_jwt_identity()
+    data_to_delete: UserModel = UserModel.query.filter_by(email=user_email).first()
 
     session.delete(data_to_delete)
     session.commit()
