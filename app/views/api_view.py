@@ -36,14 +36,13 @@ def signup():
     data_form = request.form
 
     new_api_token = api_token.token_hex(16)
-    password_to_hash = data_form["password"]
 
     new_user = UserModel(name=data_form["name"], 
-                        last_name=data_form["last_name"], 
+                        last_name=data_form["last_name"],
+                        password=data_form["password"],
                         email=data_form["email"], 
                         api_key=new_api_token)
 
-    new_user.password = password_to_hash
     end_session(session, new_user)
     return jsonify(new_user.serialized), HTTPStatus.OK
 
